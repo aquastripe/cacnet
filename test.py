@@ -195,7 +195,7 @@ def main():
     os.makedirs(results_dir, exist_ok=True)
     weight_file = args.weight
     model = CACNet(loadweights=False)
-    model.load_state_dict(torch.load(weight_file))
+    model.load_state_dict(torch.load(weight_file, map_location='cpu'))
     model = model.to(device).eval()
     evaluate_on_FCDB_and_FLMS(model, dataset='FCDB', save_results=True, results_dir=results_dir)
     evaluate_on_FCDB_and_FLMS(model, dataset='FLMS', save_results=True, results_dir=results_dir)
