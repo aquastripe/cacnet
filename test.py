@@ -184,7 +184,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--weight')
     parser.add_argument('--gpu', type=int)
-    parser.add_argument('--results', type=int)
+    parser.add_argument('--results')
     return parser.parse_args()
 
 
