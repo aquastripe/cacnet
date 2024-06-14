@@ -1,13 +1,15 @@
 import os
 
+
 class Config:
     data_root = '/workspace/aesthetic_cropping/dataset/'
-    predefined_pkl = os.path.join(data_root, 'pdefined_anchors.pkl') # download from https://github.com/luwr1022/listwise-view-ranking/blob/master/pdefined_anchors.pkl
+    # download from https://github.com/luwr1022/listwise-view-ranking/blob/master/pdefined_anchors.pkl
+    predefined_pkl = os.path.join(data_root, 'pdefined_anchors.pkl')
     FCDB_dir = os.path.join(data_root, 'FCDB')
     FLMS_dir = os.path.join(data_root, 'FLMS')
     KUPCP_dir = '/workspace/aesthetic_cropping/dataset/KU_PCP'
 
-    image_size = (224,224)
+    image_size = (224, 224)
     data_augmentation = True
     keep_aspect_ratio = False
 
@@ -16,12 +18,12 @@ class Config:
     gpu_id = 1
     num_workers = 8
     crop_batch_size = 8
-    com_batch_size  = 64
+    com_batch_size = 64
     crop_loss_factor = 0.7
-    com_loss_factor  = 0.3
+    com_loss_factor = 0.3
 
     max_epoch = 90
-    lr_decay_epoch = [30,60]
+    lr_decay_epoch = [30, 60]
     lr = 3.5e-4
     lr_decay = 0.1
     weight_decay = 1e-4
@@ -51,6 +53,7 @@ class Config:
         os.makedirs(self.exp_path)
         os.makedirs(self.checkpoint_dir)
         os.makedirs(self.log_dir)
+
 
 cfg = Config()
 

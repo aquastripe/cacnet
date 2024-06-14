@@ -1,3 +1,4 @@
+import argparse
 import json
 import os
 import warnings
@@ -5,6 +6,7 @@ import warnings
 import cv2
 import numpy as np
 import torch
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from CACNet import CACNet
@@ -13,10 +15,6 @@ from KUPCP_dataset import CompositionDataset, composition_cls
 from config_cropping import cfg
 
 warnings.filterwarnings("ignore")
-
-device = torch.device('cuda:{}'.format(cfg.gpu_id))
-results_dir = './results'
-os.makedirs(results_dir, exist_ok=True)
 
 
 def compute_iou_and_disp(gt_crop, pre_crop, im_w, im_h):
@@ -46,7 +44,7 @@ def compute_iou_and_disp(gt_crop, pre_crop, im_w, im_h):
     return iou[index].item(), disp[index].item()
 
 
-def evaluate_on_FCDB_and_FLMS(model, dataset, save_results=False):
+def evaluate_on_FCDB_and_FLMS(model, dataset, save_results=False, results_dir=''):
     model.eval()
     device = next(model.parameters()).device
     accum_disp = 0
@@ -73,9 +71,7 @@ def evaluate_on_FCDB_and_FLMS(model, dataset, save_results=False):
         for dataset in test_set:
             test_dataset = dataset(split='test',
                                    keep_aspect_ratio=cfg.keep_aspect_ratio)
-            test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=1,
-                                                      shuffle=False, num_workers=cfg.num_workers,
-                                                      drop_last=False)
+            test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=cfg.num_workers)
             for batch_idx, batch_data in enumerate(tqdm(test_loader)):
                 im = batch_data[0].to(device)
                 gt_crop = batch_data[1]  # x1,y1,x2,y2
@@ -157,9 +153,7 @@ def evaluate_composition_classification(model):
 
     with torch.no_grad():
         test_dataset = CompositionDataset(split='test', keep_aspect_ratio=cfg.keep_aspect_ratio)
-        test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=1,
-                                                  shuffle=False, num_workers=cfg.num_workers,
-                                                  drop_last=False)
+        test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=cfg.num_workers)
         for batch_idx, batch_data in enumerate(tqdm(test_loader)):
             im = batch_data[0].to(device)
             labels = batch_data[1]
@@ -186,10 +180,26 @@ def evaluate_composition_classification(model):
     return acc
 
 
-if __name__ == '__main__':
-    weight_file = "./pretrained_model/best-FLMS_iou.pth"
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--weight')
+    parser.add_argument('--gpu', type=int)
+    parser.add_argument('--results', type=int)
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+    device = torch.device(f'cuda:{args.gpu}' if args.gpu != -1 else 'cpu')
+    results_dir = args.results
+    os.makedirs(results_dir, exist_ok=True)
+    weight_file = args.weight
     model = CACNet(loadweights=False)
     model.load_state_dict(torch.load(weight_file))
     model = model.to(device).eval()
-    evaluate_on_FCDB_and_FLMS(model, dataset='FCDB', save_results=True)
-    evaluate_on_FCDB_and_FLMS(model, dataset='FLMS', save_results=True)
+    evaluate_on_FCDB_and_FLMS(model, dataset='FCDB', save_results=True, results_dir=results_dir)
+    evaluate_on_FCDB_and_FLMS(model, dataset='FLMS', save_results=True, results_dir=results_dir)
+
+
+if __name__ == '__main__':
+    main()
