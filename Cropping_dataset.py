@@ -72,7 +72,7 @@ class FCDBDataset(Dataset):
         else:
             h = cfg.image_size[1]
             w = cfg.image_size[0]
-        resized_image = image.resize((w, h), Image.ANTIALIAS)
+        resized_image = image.resize((w, h), Image.Resampling.LANCZOS)
 
         crop = self.annos[image_name]
         crop = np.array(crop).reshape(-1, 4).astype(np.float32)
@@ -131,7 +131,7 @@ class FLMSDataset(Dataset):
         else:
             h = cfg.image_size[1]
             w = cfg.image_size[0]
-        resized_image = image.resize((w, h), Image.ANTIALIAS)
+        resized_image = image.resize((w, h), Image.Resampling.LANCZOS)
         im = self.image_transformer(resized_image)
         crop = self.annos[image_name]
         crop = np.array(crop).reshape(-1, 4).astype(np.float32)
