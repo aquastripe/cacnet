@@ -8,9 +8,9 @@ import pickle
 import torch.utils.data as data
 import torch.optim as optim
 
-from KUPCP_dataset import CompositionDataset, composition_cls
+from KUPCP_dataset import CompositionDataset
 from config_classification import cfg
-from test import evaluate_composition_classification
+from test_composition_classification import evaluate_composition_classification, composition_cls
 from CACNet import ComClassifier
 
 cfg.create_path()

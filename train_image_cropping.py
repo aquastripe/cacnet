@@ -11,10 +11,11 @@ import random
 import torch.utils.data as data
 import cv2
 
-from KUPCP_dataset import CompositionDataset, composition_cls
+from KUPCP_dataset import CompositionDataset
 from Cropping_dataset import FCDBDataset
 from config_cropping import cfg
-from test import evaluate_on_FCDB_and_FLMS, evaluate_composition_classification
+from test import evaluate_on_FCDB_and_FLMS
+from test_composition_classification import evaluate_composition_classification, composition_cls
 from CACNet import CACNet
 import warnings
 warnings.filterwarnings("ignore")
