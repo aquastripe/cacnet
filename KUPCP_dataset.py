@@ -7,7 +7,6 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader, Dataset
 
 from config_classification import cfg
-from test_composition_classification import composition_cls
 
 IMAGE_NET_MEAN = [0.485, 0.456, 0.406]
 IMAGE_NET_STD = [0.229, 0.224, 0.225]
@@ -136,3 +135,5 @@ if __name__ == '__main__':
     for batch_idx, data in enumerate(dataloader):
         im, cls, comp = data
         print(im.shape, cls.shape, len(comp))
+composition_cls = ['rule of thirds(RoT)', 'vertical', 'horizontal', 'diagonal', 'curved',
+                   'triangle', 'center', 'symmetric', 'pattern']

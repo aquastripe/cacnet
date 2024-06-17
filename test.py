@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 from CACNet import CACNet
 from Cropping_dataset import FCDBDataset, FLMSDataset
-from test_composition_classification import composition_cls
+from KUPCP_dataset import composition_cls
 from config_cropping import cfg
 
 warnings.filterwarnings("ignore")

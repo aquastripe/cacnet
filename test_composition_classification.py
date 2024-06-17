@@ -2,7 +2,7 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from KUPCP_dataset import CompositionDataset
+from KUPCP_dataset import CompositionDataset, composition_cls
 from config_cropping import cfg
 
 
@@ -42,7 +42,3 @@ def evaluate_composition_classification(model):
         print('{}: total {} images, {} correct, Acc {:.2%}'.format(
             composition_cls[i], cls_cnt[i], cls_correct[i], float(cls_correct[i]) / cls_cnt[i]))
     return acc
-
-
-composition_cls = ['rule of thirds(RoT)', 'vertical', 'horizontal', 'diagonal', 'curved',
-                   'triangle', 'center', 'symmetric', 'pattern']
