@@ -1,17 +1,10 @@
 import os
-import cv2
-import numpy as np
-import pickle
-import lmdb
-import datetime
-import torch
+
 import PIL.Image as Image
-from torch.utils.data import DataLoader, Dataset
+import cv2
+import torch
 import torchvision.transforms as transforms
-import json
-import matplotlib.pyplot as plt
-import math
-from numpy import random
+from torch.utils.data import DataLoader, Dataset
 
 from config_classification import cfg
 
@@ -20,6 +13,7 @@ IMAGE_NET_STD = [0.229, 0.224, 0.225]
 
 composition_cls = ['rule of thirds(RoT)', 'vertical', 'horizontal', 'diagonal', 'curved',
                    'triangle', 'center', 'symmetric', 'pattern']
+
 
 class CompositionDataset(Dataset):
     def __init__(self, split, keep_aspect_ratio):
@@ -54,8 +48,8 @@ class CompositionDataset(Dataset):
         image_list = os.listdir(self.image_dir)
         image_list = sorted(image_list, key=lambda k: float(os.path.splitext(k)[0]))
         annotation = []
-        image_idx  = 0
-        txt_idx    = 0
+        image_idx = 0
+        txt_idx = 0
         with open(self.label_txt, 'r') as f:
             for line in f.readlines():
                 txt_idx += 1
@@ -81,7 +75,7 @@ class CompositionDataset(Dataset):
                 # else:
                 #     print(image_name, labels, categories)
             print('{} set, total {} images'.format(
-                  self.split, len(annotation)))
+                self.split, len(annotation)))
         return annotation
 
     def gather_training_annotation(self):
@@ -101,7 +95,7 @@ class CompositionDataset(Dataset):
                         annotation[c].append(image_name)
         for c in range(9):
             print('{}, total {} training images'.format(
-                  composition_cls[c], len(annotation[c])))
+                composition_cls[c], len(annotation[c])))
         return annotation
 
     def __len__(self):
@@ -120,6 +114,7 @@ class CompositionDataset(Dataset):
 
         return im, cls, image_file
 
+
 def check_jpg_file(path):
     file_list = [file for file in os.listdir(path) if file.endswith('.jpg')]
     for file in file_list:
@@ -132,6 +127,7 @@ def check_jpg_file(path):
             cv2.imwrite(image_file, im)
         else:
             im = cv2.imread(image_file)
+
 
 if __name__ == '__main__':
     # remove several wrong images
