@@ -83,8 +83,8 @@ class FCDBDataset(Dataset):
                 g_x1, g_y1, g_x2, g_y2 = crop[0]
                 x1 = random.randint(0, g_x1) if 0 != g_x1 else 0
                 y1 = random.randint(0, g_y1) if 0 != g_y1 else 0
-                x2 = random.randint(g_x2, im_width) if g_x2 != im_width else im_width
-                y2 = random.randint(g_y2, im_height) if g_y2 != im_height else im_height
+                x2 = random.randint(g_x2, im_width) if g_x2 < im_width else im_width
+                y2 = random.randint(g_y2, im_height) if g_y2 < im_height else im_height
 
                 image = image.crop((x1, y1, x2, y2))
 
