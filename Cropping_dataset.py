@@ -3,9 +3,11 @@ import os
 import random
 
 import numpy as np
-import torchvision.transforms as transforms
+import torch
+import torchvision.transforms.v2 as T
 from PIL import Image, ImageOps
 from torch.utils.data import DataLoader, Dataset
+from torchvision.io import read_image
 
 from config_cropping import cfg
 
@@ -33,11 +35,11 @@ class FCDBDataset(Dataset):
         self.annos = self.parse_annotations(split)
         self.image_list = list(self.annos.keys())
         self.data_augment = (cfg.data_augmentation and self.split == 'train')
-        self.PhotometricDistort = transforms.ColorJitter(
-            brightness=0.125, contrast=0.5, saturation=0.5, hue=0.05)
-        self.image_transformer = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize(mean=IMAGE_NET_MEAN, std=IMAGE_NET_STD)])
+        self.PhotometricDistort = T.ColorJitter(brightness=0.125, contrast=0.5, saturation=0.5, hue=0.05)
+        self.image_transformer = T.Compose([
+            T.ToTensor(),
+            T.Normalize(mean=IMAGE_NET_MEAN, std=IMAGE_NET_STD)
+        ])
 
     def parse_annotations(self, split):
         if split == 'train':
@@ -72,10 +74,25 @@ class FCDBDataset(Dataset):
         else:
             h = cfg.image_size[1]
             w = cfg.image_size[0]
-        resized_image = image.resize((w, h), Image.Resampling.LANCZOS)
 
         crop = self.annos[image_name]
         crop = np.array(crop).reshape(-1, 4).astype(np.float32)
+
+        if self.split == 'train' and cfg.GPCA:
+            if random.uniform(0, 1) > cfg.GPCA:
+                g_x1, g_y1, g_x2, g_y2 = crop[0]
+                x1 = random.randint(0, g_x1)
+                y1 = random.randint(0, g_y1)
+                x2 = random.randint(g_x2, im_width)
+                y2 = random.randint(g_y2, im_height)
+
+                image = image.crop((x1, y1, x2, y2))
+
+                crop[:, 0::2] -= x1
+                crop[:, 1::2] -= y1
+
+        resized_image = image.resize((w, h), Image.Resampling.LANCZOS)
+
         if self.data_augment:
             if random.uniform(0, 1) > 0.5:
                 resized_image = ImageOps.mirror(resized_image)
@@ -88,7 +105,7 @@ class FCDBDataset(Dataset):
 
 
 class FLMSDataset(Dataset):
-    def __init__(self, split='test', keep_aspect_ratio=False):
+    def __init__(self, split='test', keep_aspect_ratio=False, transforms_v1=False):
         self.keep_aspect = keep_aspect_ratio
         self.data_dir = cfg.FLMS_dir
         assert os.path.exists(self.data_dir), self.data_dir
@@ -96,9 +113,16 @@ class FLMSDataset(Dataset):
         assert os.path.exists(self.image_dir), self.image_dir
         self.annos = self.parse_annotations()
         self.image_list = list(self.annos.keys())
-        self.image_transformer = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize(mean=IMAGE_NET_MEAN, std=IMAGE_NET_STD)])
+        self.transforms_pil = T.Compose([
+            T.ToTensor(),
+            T.Normalize(mean=IMAGE_NET_MEAN, std=IMAGE_NET_STD),
+        ])
+        self.transforms_v2 = T.Compose([
+            T.Resize((224, 224)),
+            T.ToDtype(torch.float, scale=True),
+            T.Normalize(mean=IMAGE_NET_MEAN, std=IMAGE_NET_STD),
+        ])
+        self.transforms_v1 = transforms_v1
 
     def parse_annotations(self):
         image_crops_file = os.path.join(self.data_dir, '500_image_dataset.mat')
@@ -122,17 +146,23 @@ class FLMSDataset(Dataset):
     def __getitem__(self, index):
         image_name = self.image_list[index]
         image_file = os.path.join(self.image_dir, image_name)
+
         image = Image.open(image_file).convert('RGB')
         im_width, im_height = image.size
-        if self.keep_aspect:
-            scale = float(cfg.image_size[0]) / min(im_height, im_width)
-            h = round(im_height * scale / 32.0) * 32
-            w = round(im_width * scale / 32.0) * 32
+        if self.transforms_v1:
+            if self.keep_aspect:
+                scale = float(cfg.image_size[0]) / min(im_height, im_width)
+                h = round(im_height * scale / 32.0) * 32
+                w = round(im_width * scale / 32.0) * 32
+            else:
+                h = cfg.image_size[1]
+                w = cfg.image_size[0]
+            resized_image = image.resize((w, h), Image.Resampling.LANCZOS)
+            im = self.transforms_pil(resized_image)
         else:
-            h = cfg.image_size[1]
-            w = cfg.image_size[0]
-        resized_image = image.resize((w, h), Image.Resampling.LANCZOS)
-        im = self.image_transformer(resized_image)
+            image = read_image(image_file)
+            im = self.transforms_v2(image)
+
         crop = self.annos[image_name]
         crop = np.array(crop).reshape(-1, 4).astype(np.float32)
         return im, crop, im_width, im_height, image_file
