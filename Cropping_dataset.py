@@ -76,7 +76,7 @@ class FCDBDataset(Dataset):
             w = cfg.image_size[0]
 
         crop = self.annos[image_name]
-        crop = np.array(crop).reshape(-1, 4).astype(np.float32)
+        crop = np.array(crop).reshape(-1, 4)
 
         if self.split == 'train' and cfg.GPCA:
             if random.uniform(0, 1) > cfg.GPCA:
@@ -91,6 +91,7 @@ class FCDBDataset(Dataset):
                 crop[:, 0::2] -= x1
                 crop[:, 1::2] -= y1
 
+        crop = crop.astype(np.float32)
         resized_image = image.resize((w, h), Image.Resampling.LANCZOS)
 
         if self.data_augment:
