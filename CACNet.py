@@ -1,3 +1,5 @@
+import argparse
+
 import einops
 import numpy as np
 import torch
@@ -8,9 +10,9 @@ import torchvision.models as models
 from config_cropping import cfg
 
 
-class vgg_base(nn.Module):
+class VGGBase(nn.Module):
     def __init__(self, loadweights=True):
-        super(vgg_base, self).__init__()
+        super().__init__()
         vgg = models.vgg16(pretrained=loadweights)
         self.feature1 = nn.Sequential(vgg.features[:6])  # /2
         self.feature2 = nn.Sequential(vgg.features[6:10])  # /4
@@ -118,10 +120,10 @@ class CroppingModel(nn.Module):
                 m.bias.data.zero_()
 
     def forward(self, x):
-        '''
+        """
         :param x: b,512,H/16,W/16
         :return: b,4. anchor shifts of the best crop
-        '''
+        """
         x = self.conv1(x)
         x = self.conv2(x)
         x = self.conv3(x)
@@ -211,7 +213,7 @@ class PostProcess(nn.Module):
 class ComClassifier(nn.Module):
     def __init__(self, loadweights=True):
         super(ComClassifier, self).__init__()
-        self.backbone = vgg_base(loadweights=loadweights)
+        self.backbone = VGGBase(loadweights=loadweights)
         self.composition_module = CompositionModel()
 
     def forward(self, x, only_classify=False):
@@ -226,7 +228,7 @@ class CACNet(nn.Module):
         anchor_stride = 8
         image_size = cfg.image_size
         assert cfg.backbone == 'vgg16', cfg.backbone
-        self.backbone = vgg_base(loadweights=loadweights)
+        self.backbone = VGGBase(loadweights=loadweights)
         self.composition_module = CompositionModel()
         self.cropping_module = CroppingModel(anchor_stride)
         self.post_process = PostProcess(anchor_stride, image_size)
@@ -243,12 +245,20 @@ class CACNet(nn.Module):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--params')
+    args = parser.parse_args()
+
     device = torch.device('cuda:0')
-    x = torch.randn(2, 3, cfg.image_size[0], cfg.image_size[1])
-    model = CACNet(loadweights=True)
-    cls, kcm, box = model(x)
-    print(cls.shape, box.shape)
-    print('classification', cls)
-    print('box', box)
-    # model = ComClassifier()
-    # print(model(x))
+    with torch.no_grad():
+        x = torch.zeros(1, 3, 224, 224, device=device)
+        model = CACNet(loadweights=False)
+        params_path = args.params
+        params = torch.load(params_path, map_location='cpu')
+        model.load_state_dict(params)
+        model.to(device)
+        model.eval()
+        cls, kcm, box = model(x)
+        print(cls.shape, box.shape)
+        print('classification', cls)
+        print('box', box)
