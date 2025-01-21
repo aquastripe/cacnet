@@ -4,7 +4,7 @@ import os
 class Config:
     data_root = r'F:\Workspace'
     # download from https://github.com/luwr1022/listwise-view-ranking/blob/master/pdefined_anchors.pkl
-    predefined_pkl = os.path.join(data_root, 'pdefined_anchors.pkl')
+    # predefined_pkl = os.path.join(data_root, 'pdefined_anchors.pkl')
     FCDB_dir = os.path.join(data_root, 'FCDB')
     FLMS_dir = os.path.join(data_root, 'FLMS')
     KUPCP_dir = '/workspace/aesthetic_cropping/dataset/KU_PCP'
@@ -12,6 +12,7 @@ class Config:
     image_size = (224, 224)
     data_augmentation = True
     keep_aspect_ratio = False
+    GPCA = 0
 
     backbone = 'vgg16'
     # training
@@ -35,6 +36,9 @@ class Config:
     prefix = 'cropping_{}croploss_{}classifyloss'.format(crop_loss_factor, com_loss_factor)
     exp_root = os.path.join(os.getcwd(), './experiments/')
     exp_name = prefix
+    if GPCA:
+        exp_name += f'_GPCA_{GPCA}'
+
     exp_path = os.path.join(exp_root, prefix)
     while os.path.exists(exp_path):
         index = os.path.basename(exp_path).split(prefix)[-1].split('repeat')[-1]
