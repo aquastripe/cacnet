@@ -2,8 +2,10 @@ import argparse
 import json
 import os
 import warnings
+from collections import defaultdict
 
 import cv2
+import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -39,7 +41,7 @@ def compute_iou_and_disp(gt_crop, pre_crop, im_w, im_h):
     iou_idx = torch.argmax(iou, dim=-1)
     dis_idx = torch.argmin(disp, dim=-1)
     index = dis_idx if (iou[iou_idx] == iou[dis_idx]) else iou_idx
-    return iou[index].item(), disp[index].item()
+    return iou[index].item(), disp[index].item(), gt_crop[index].tolist()
 
 
 def evaluate_on_FCDB_and_FLMS(model, dataset, save_results=False, results_dir=''):
@@ -58,50 +60,71 @@ def evaluate_on_FCDB_and_FLMS(model, dataset, save_results=False, results_dir=''
         os.makedirs(crop_dir, exist_ok=True)
         test_results = dict()
 
+    column_names = [
+        'Image Path', 'P.x', 'P.y', 'P.w', 'P.h', 'G.x', 'G.y', 'G.w', 'G.h', 'IoU', 'BDE', 'Alpha.75'
+    ]
     print('=' * 5, f'Evaluating on {dataset}', '=' * 5)
+    dataset_name = dataset
     with torch.no_grad():
         if dataset == 'FCDB':
-            test_set = [FCDBDataset]
+            DatasetClass = FCDBDataset
         elif dataset == 'FLMS':
-            test_set = [FLMSDataset]
+            DatasetClass = FLMSDataset
         else:
             raise Exception('Undefined test set ', dataset)
-        for dataset in test_set:
-            test_dataset = dataset(split='test',
-                                   keep_aspect_ratio=cfg.keep_aspect_ratio)
-            test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=cfg.num_workers)
-            for batch_idx, batch_data in enumerate(tqdm(test_loader)):
-                im = batch_data[0].to(device)
-                gt_crop = batch_data[1]  # x1,y1,x2,y2
-                width = batch_data[2].item()
-                height = batch_data[3].item()
-                image_file = batch_data[4][0]
-                image_name = os.path.basename(image_file)
+        df = defaultdict(list)
+        testset = DatasetClass(split='test',
+                               keep_aspect_ratio=cfg.keep_aspect_ratio)
+        test_loader = DataLoader(testset, batch_size=1, shuffle=False, num_workers=cfg.num_workers)
+        for batch_idx, batch_data in enumerate(tqdm(test_loader)):
+            im = batch_data[0].to(device)
+            gt_crop = batch_data[1]  # x1,y1,x2,y2
+            width = batch_data[2].item()
+            height = batch_data[3].item()
+            image_file = batch_data[4][0]
+            image_name = os.path.basename(image_file)
 
-                logits, kcm, crop = model(im, only_classify=False)
-                crop[:, 0::2] = crop[:, 0::2] / im.shape[-1] * width
-                crop[:, 1::2] = crop[:, 1::2] / im.shape[-2] * height
-                pred_crop = crop.detach().cpu()
-                gt_crop = gt_crop.reshape(-1, 4)
-                pred_crop[:, 0::2] = torch.clip(pred_crop[:, 0::2], min=0, max=width)
-                pred_crop[:, 1::2] = torch.clip(pred_crop[:, 1::2], min=0, max=height)
+            logits, kcm, crop = model(im, only_classify=False)
+            crop[:, 0::2] = crop[:, 0::2] / im.shape[-1] * width
+            crop[:, 1::2] = crop[:, 1::2] / im.shape[-2] * height
+            pred_crop = crop.detach().cpu()
+            gt_crop = gt_crop.reshape(-1, 4)
+            pred_crop[:, 0::2] = torch.clip(pred_crop[:, 0::2], min=0, max=width)
+            pred_crop[:, 1::2] = torch.clip(pred_crop[:, 1::2], min=0, max=height)
 
-                iou, disp = compute_iou_and_disp(gt_crop, pred_crop, width, height)
-                if iou >= alpha:
-                    alpha_cnt += 1
-                accum_iou += iou
-                accum_disp += disp
-                cnt += 1
+            iou, disp, gt_crop = compute_iou_and_disp(gt_crop, pred_crop, width, height)
+            if iou >= alpha:
+                alpha_cnt += 1
+            accum_iou += iou
+            accum_disp += disp
+            cnt += 1
 
-                if save_results:
-                    best_crop = pred_crop[0].numpy().tolist()
-                    best_crop = [int(x) for x in best_crop]  # x1,y1,x2,y2
-                    test_results[image_name] = best_crop
+            best_crop = pred_crop[0].numpy().tolist()
+            if save_results:
+                best_crop = [int(x) for x in best_crop]  # x1,y1,x2,y2
+                test_results[image_name] = best_crop
 
-                    # save the best crop
-                    source_img = cv2.imread(image_file)
-                    croped_img = source_img[best_crop[1]: best_crop[3], best_crop[0]: best_crop[2]]
-                    cv2.imwrite(os.path.join(crop_dir, image_name), croped_img)
+                # save the best crop
+                source_img = cv2.imread(image_file)
+                croped_img = source_img[best_crop[1]: best_crop[3], best_crop[0]: best_crop[2]]
+                cv2.imwrite(os.path.join(crop_dir, image_name), croped_img)
+
+            df['Image Path'].append(image_name)
+            df['P.x'].append(best_crop[0])
+            df['P.y'].append(best_crop[1])
+            df['P.w'].append(best_crop[2] - best_crop[0])
+            df['P.h'].append(best_crop[3] - best_crop[1])
+            df['G.x'].append(gt_crop[0])
+            df['G.y'].append(gt_crop[1])
+            df['G.w'].append(gt_crop[2] - gt_crop[0])
+            df['G.h'].append(gt_crop[3] - gt_crop[1])
+            df['IoU'].append(iou)
+            df['BDE'].append(disp)
+            df['Alpha.75'].append(int(iou >= alpha))
+
+        df = pd.DataFrame(df)
+        df.to_csv(f'{dataset_name}.csv', index=False)
+
     if save_results:
         with open(save_file, 'w') as f:
             json.dump(test_results, f)
