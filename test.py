@@ -13,6 +13,7 @@ from tqdm import tqdm
 from CACNet import CACNet
 from Cropping_dataset import FCDBDataset, FLMSDataset
 from config_cropping import cfg
+from test_composition_classification import evaluate_composition_classification
 
 warnings.filterwarnings("ignore")
 
@@ -156,6 +157,7 @@ def main():
     model = model.to(device).eval()
     evaluate_on_FCDB_and_FLMS(model, dataset='FCDB', save_results=True, results_dir=results_dir)
     evaluate_on_FCDB_and_FLMS(model, dataset='FLMS', save_results=True, results_dir=results_dir)
+    evaluate_composition_classification(model)
 
 
 if __name__ == '__main__':
